@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MemberInput from '../../../components/MemberInput';
 import ImageUpload from '../../../components/ImageUpload';
+import TextUpload from '../../../components/TextUpload';
+import AIDataReview from '../../../components/AIDataReview';
 import CalendarPicker from '../../../components/CalendarPicker';
 import ConstraintInput from '../../../components/ConstraintInput';
 import SchedulePreview from '../../../components/SchedulePreview';
@@ -18,6 +20,15 @@ const STEPS = [
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
         <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+      </svg>
+    )
+  },
+  { 
+    id: 'review',
+    label: 'Review Data',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
       </svg>
     )
   },
@@ -55,10 +66,11 @@ export default function CreateSchedulePage() {
   const router = useRouter();
   const [step, setStep] = useState('members');
   const [members, setMembers] = useState([]);
+  const [extractedData, setExtractedData] = useState(null);
   const [lessonDates, setLessonDates] = useState([]);
   const [constraints, setConstraints] = useState({ maxGroupSize: 4, mixGroups: true });
   const [schedules, setSchedules] = useState([]);
-  const [useImageUpload, setUseImageUpload] = useState(false);
+  const [inputMode, setInputMode] = useState('manual'); // 'manual', 'image', or 'text'
   
   // Handle adding members
   const handleAddMembers = (newMembers) => {
@@ -68,8 +80,40 @@ export default function CreateSchedulePage() {
   
   // Handle image upload processing
   const handleProcessImage = (extractedData) => {
-    setMembers(extractedData.members);
-    setStep('dates');
+    setExtractedData(extractedData);
+    setStep('review');
+  };
+  
+  // Handle text upload processing
+  const handleProcessText = (extractedData) => {
+    setExtractedData(extractedData);
+    
+    // If lesson dates were also extracted, save them
+    if (extractedData.lessonDates && extractedData.lessonDates.length > 0) {
+      setLessonDates(extractedData.lessonDates);
+    }
+    
+    setStep('review');
+  };
+  
+  // Handle AI data review confirmation
+  const handleReviewConfirm = (reviewedData) => {
+    setMembers(reviewedData.members);
+    
+    // If lesson dates were extracted from text and already set, skip to constraints
+    if (inputMode === 'text' && lessonDates.length > 0) {
+      setStep('constraints');
+    } else {
+      setStep('dates');
+    }
+  };
+  
+  // Handle switch to manual mode from AI review
+  const handleEditManually = () => {
+    // Pre-populate manual input with the extracted data
+    setMembers(extractedData?.members || []);
+    setInputMode('manual');
+    setStep('members');
   };
   
   // Handle date selection
@@ -108,9 +152,9 @@ export default function CreateSchedulePage() {
               <div className="inline-flex items-center p-1 rounded-full bg-muted/70 shadow-sm">
                 <button
                   type="button"
-                  onClick={() => setUseImageUpload(false)}
+                  onClick={() => setInputMode('manual')}
                   className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    !useImageUpload 
+                    inputMode === 'manual' 
                       ? 'bg-white dark:bg-card shadow-sm' 
                       : 'text-muted-foreground hover:bg-muted/50'
                   }`}
@@ -119,24 +163,46 @@ export default function CreateSchedulePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setUseImageUpload(true)}
+                  onClick={() => setInputMode('image')}
                   className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    useImageUpload 
+                    inputMode === 'image' 
                       ? 'bg-white dark:bg-card shadow-sm' 
                       : 'text-muted-foreground hover:bg-muted/50'
                   }`}
                 >
                   Upload Image
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setInputMode('text')}
+                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                    inputMode === 'text' 
+                      ? 'bg-white dark:bg-card shadow-sm' 
+                      : 'text-muted-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  Paste Text
+                </button>
               </div>
             </div>
             
-            {useImageUpload ? (
+            {inputMode === 'image' ? (
               <ImageUpload onProcessImage={handleProcessImage} />
+            ) : inputMode === 'text' ? (
+              <TextUpload onProcessText={handleProcessText} />
             ) : (
               <MemberInput onAddMembers={handleAddMembers} />
             )}
           </div>
+        );
+      
+      case 'review':
+        return (
+          <AIDataReview 
+            extractedData={extractedData} 
+            onConfirm={handleReviewConfirm}
+            onEditManually={handleEditManually}
+          />
         );
       
       case 'dates':
@@ -153,8 +219,22 @@ export default function CreateSchedulePage() {
     }
   };
   
-  // Calculate the current step index
-  const currentStepIndex = STEPS.findIndex(s => s.id === step);
+  // Get active steps based on flow (AI or manual)
+  const getActiveSteps = () => {
+    // For manual entry, skip the review step
+    if (inputMode === 'manual' && step !== 'review') {
+      return STEPS.filter(s => s.id !== 'review');
+    }
+    // For text entry that extracted dates, potentially skip dates step
+    else if (inputMode === 'text' && lessonDates.length > 0 && step === 'review') {
+      return STEPS.filter(s => s.id !== 'dates');
+    }
+    return STEPS;
+  };
+  
+  // Calculate the current step index based on active steps
+  const activeSteps = getActiveSteps();
+  const currentStepIndex = activeSteps.findIndex(s => s.id === step);
   
   return (
     <div className="min-h-screen relative">
@@ -185,12 +265,12 @@ export default function CreateSchedulePage() {
             <div className="overflow-hidden h-1.5 mb-5 bg-muted rounded-full">
               <div 
                 className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all ease-out duration-500" 
-                style={{ width: `${((currentStepIndex + 1) / STEPS.length) * 100}%` }}
+                style={{ width: `${((currentStepIndex + 1) / activeSteps.length) * 100}%` }}
               />
             </div>
             
             <div className="flex justify-between relative z-10">
-              {STEPS.map((stepItem, index) => {
+              {activeSteps.map((stepItem, index) => {
                 const isActive = index <= currentStepIndex;
                 const isCurrent = index === currentStepIndex;
                 
