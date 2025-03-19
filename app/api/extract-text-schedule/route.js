@@ -18,7 +18,7 @@ export async function POST(request) {
     
     // Call the OpenAI API to analyze the text
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo",
+      model: "gpt-4-0125-preview", // Using a more reliable model name
       messages: [
         {
           role: "system",
@@ -41,13 +41,18 @@ Return the data in the following JSON format:
   ]
 }
 
-If the year is not specified in a date, assume the current year. If a person is out for a specific month or range of dates, list all the individual dates. Here's the text to extract from:
+If the year is not specified in a date, assume the current year. If a person is out for a specific month or range of dates, list all the individual dates. 
+
+Even if the text doesn't seem to contain clear schedule information, make your best attempt to extract any relevant dates and names. If no lesson dates are specified, leave the lessonDates array empty.
+
+Here's the text to extract from:
 
 ${text}`
         }
       ],
       response_format: { type: "json_object" },
       max_tokens: 2000,
+      temperature: 0.2, // Lower temperature for more deterministic output
     });
     
     // Parse the response

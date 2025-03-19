@@ -21,11 +21,15 @@ export async function POST(request) {
       model: "gpt-4-vision-preview",
       messages: [
         {
+          role: "system",
+          content: "You are an AI assistant specialized in extracting schedule information from images. Extract all person names and their unavailable dates with high accuracy."
+        },
+        {
           role: "user",
           content: [
             { 
               type: "text", 
-              text: "Extract the schedule information from this image. Find all person names and their unavailable dates. Return the data in the following JSON format: {\"members\": [{\"id\": 1, \"name\": \"Person Name\", \"unavailableDates\": [\"YYYY-MM-DD\"]}, ...]} If you can't determine specific dates but see symbols or markings indicating unavailability, make your best guess at the dates based on the context in the image." 
+              text: "Extract the schedule information from this image. Find all person names and their unavailable dates. Return the data in the following JSON format: {\"members\": [{\"id\": 1, \"name\": \"Person Name\", \"unavailableDates\": [\"YYYY-MM-DD\"]}, ...]} \n\nIf you can't determine specific dates but see symbols or markings indicating unavailability, make your best guess at the dates based on the context in the image. If you see a calendar or schedule table, analyze the layout to determine which dates correspond to each person.\n\nIf the year is not specified in dates, assume the current year. Format all dates as YYYY-MM-DD." 
             },
             {
               type: "image_url",
@@ -36,7 +40,8 @@ export async function POST(request) {
           ],
         },
       ],
-      max_tokens: 1000,
+      max_tokens: 2000,
+      temperature: 0.2, // Lower temperature for more consistent results
     });
     
     // Parse the response

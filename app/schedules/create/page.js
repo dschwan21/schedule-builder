@@ -15,6 +15,15 @@ import { generateSchedules } from '../../../lib/utils';
 // Step indicators for the progress bar
 const STEPS = [
   { 
+    id: 'clinic-dates', 
+    label: 'Clinic Dates',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+      </svg>
+    )
+  },
+  { 
     id: 'members', 
     label: 'Add Members',
     icon: (
@@ -24,17 +33,8 @@ const STEPS = [
     )
   },
   { 
-    id: 'review',
-    label: 'Review Data',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-      </svg>
-    )
-  },
-  { 
-    id: 'dates', 
-    label: 'Select Dates',
+    id: 'unavailable-dates', 
+    label: 'Unavailable Dates',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
@@ -51,8 +51,8 @@ const STEPS = [
     )
   },
   { 
-    id: 'preview', 
-    label: 'Preview',
+    id: 'schedule', 
+    label: 'Schedule',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
         <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -64,61 +64,71 @@ const STEPS = [
 
 export default function CreateSchedulePage() {
   const router = useRouter();
-  const [step, setStep] = useState('members');
+  const [step, setStep] = useState('clinic-dates');
+  // Old input mode that was removed but might be referenced
+  const inputMode = 'manual';
   const [members, setMembers] = useState([]);
-  const [extractedData, setExtractedData] = useState(null);
-  const [lessonDates, setLessonDates] = useState([]);
-  const [constraints, setConstraints] = useState({ maxGroupSize: 4, mixGroups: true });
+  const [numMembers, setNumMembers] = useState(0);
+  const [clinicDates, setClinicDates] = useState([]);
+  const [unavailableDates, setUnavailableDates] = useState({});
+  const [constraints, setConstraints] = useState({ 
+    maxGroupSize: 4, 
+    mixGroups: true,
+    comments: '' 
+  });
   const [schedules, setSchedules] = useState([]);
-  const [inputMode, setInputMode] = useState('manual'); // 'manual', 'image', or 'text'
   
-  // Handle adding members
-  const handleAddMembers = (newMembers) => {
-    setMembers(newMembers);
-    setStep('dates');
-  };
-  
-  // Handle image upload processing
-  const handleProcessImage = (extractedData) => {
-    setExtractedData(extractedData);
-    setStep('review');
-  };
-  
-  // Handle text upload processing
-  const handleProcessText = (extractedData) => {
-    setExtractedData(extractedData);
-    
-    // If lesson dates were also extracted, save them
-    if (extractedData.lessonDates && extractedData.lessonDates.length > 0) {
-      setLessonDates(extractedData.lessonDates);
-    }
-    
-    setStep('review');
-  };
-  
-  // Handle AI data review confirmation
-  const handleReviewConfirm = (reviewedData) => {
-    setMembers(reviewedData.members);
-    
-    // If lesson dates were extracted from text and already set, skip to constraints
-    if (inputMode === 'text' && lessonDates.length > 0) {
-      setStep('constraints');
-    } else {
-      setStep('dates');
-    }
-  };
-  
-  // Handle switch to manual mode from AI review
-  const handleEditManually = () => {
-    // Pre-populate manual input with the extracted data
-    setMembers(extractedData?.members || []);
-    setInputMode('manual');
+  // Handle clinic dates selection
+  const handleSelectClinicDates = (selectedDates) => {
+    setClinicDates(selectedDates);
     setStep('members');
   };
   
-  // Handle date selection
-  const handleSelectDates = (selectedDates) => {
-    setLessonDates(selectedDates);
+  // Handle setting number of members and creating member slots
+  const handleSetMemberCount = (count) => {
+    setNumMembers(count);
+    
+    // Create empty member slots
+    const newMembers = Array.from({ length: count }, (_, index) => ({
+      id: index + 1,
+      name: '',
+      unavailableDates: []
+    }));
+    
+    setMembers(newMembers);
+  };
+  
+  // Handle adding members
+  const handleAddMembers = (newMembers) => {
+    // Update members with names
+    setMembers(prevMembers => {
+      return newMembers.map((newMember, index) => {
+        // Preserve existing unavailable dates if they exist
+        const existingMember = prevMembers.find(m => m.id === newMember.id);
+        return {
+          ...newMember,
+          unavailableDates: existingMember?.unavailableDates || []
+        };
+      });
+    });
+    
+    setStep('unavailable-dates');
+  };
+  
+  // Handle unavailable dates selection
+  const handleSelectUnavailableDates = (memberUnavailability) => {
+    setUnavailableDates(memberUnavailability);
+    
+    // Update member objects with their unavailable dates
+    const updatedMembers = members.map(member => {
+      const memberDates = memberUnavailability[member.id] || [];
+      return {
+        ...member,
+        unavailableDates: memberDates
+      };
+    });
+    
+    setMembers(updatedMembers);
     setStep('constraints');
   };
   
@@ -127,10 +137,10 @@ export default function CreateSchedulePage() {
     setConstraints(newConstraints);
     
     // Generate schedule permutations based on inputs
-    const generatedSchedules = generateSchedules(members, lessonDates, newConstraints);
+    const generatedSchedules = generateSchedules(members, clinicDates, newConstraints);
     setSchedules(generatedSchedules);
     
-    setStep('preview');
+    setStep('schedule');
   };
   
   // Handle saving a schedule
@@ -145,96 +155,111 @@ export default function CreateSchedulePage() {
   // Render the current step
   const renderStep = () => {
     switch (step) {
+      case 'clinic-dates':
+        return <CalendarPicker 
+                 key="clinic-dates-calendar"
+                 title="Select Clinic Dates" 
+                 description="Select the dates when lessons will be held" 
+                 onSelectDates={handleSelectClinicDates} 
+                 fullPage={true}
+               />;
+      
       case 'members':
         return (
-          <div>
-            <div className="flex justify-center mb-8">
-              <div className="inline-flex items-center p-1 rounded-full bg-muted/70 shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setInputMode('manual')}
-                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    inputMode === 'manual' 
-                      ? 'bg-white dark:bg-card shadow-sm' 
-                      : 'text-muted-foreground hover:bg-muted/50'
-                  }`}
+          <div className="card p-8 animate-slide-up">
+            <h2 className="text-2xl font-bold mb-8 flex items-center gap-3">
+              <div className="h-8 w-8 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                </svg>
+              </div>
+              Add Members
+            </h2>
+            
+            {numMembers === 0 ? (
+              <div className="card p-6 border-2 border-border/50 mb-8">
+                <h3 className="font-medium text-lg mb-4">How many members will participate?</h3>
+                <div className="flex items-center gap-4 mb-6">
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="20" 
+                    className="input w-full text-lg" 
+                    placeholder="Enter number of members" 
+                    onChange={(e) => setNumMembers(parseInt(e.target.value) || 0)}
+                    value={numMembers || ''}
+                  />
+                </div>
+                <button 
+                  className="button button-primary"
+                  disabled={numMembers < 1}
+                  onClick={() => handleSetMemberCount(numMembers)}
                 >
-                  Manual Entry
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInputMode('image')}
-                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    inputMode === 'image' 
-                      ? 'bg-white dark:bg-card shadow-sm' 
-                      : 'text-muted-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  Upload Image
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setInputMode('text')}
-                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    inputMode === 'text' 
-                      ? 'bg-white dark:bg-card shadow-sm' 
-                      : 'text-muted-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  Paste Text
+                  Continue
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
                 </button>
               </div>
-            </div>
-            
-            {inputMode === 'image' ? (
-              <ImageUpload onProcessImage={handleProcessImage} />
-            ) : inputMode === 'text' ? (
-              <TextUpload onProcessText={handleProcessText} />
             ) : (
-              <MemberInput onAddMembers={handleAddMembers} />
+              <MemberInput 
+                key="member-input"
+                initialMembers={members} 
+                onAddMembers={handleAddMembers} 
+                showUnavailability={false}
+              />
             )}
           </div>
         );
       
-      case 'review':
-        return (
-          <AIDataReview 
-            extractedData={extractedData} 
-            onConfirm={handleReviewConfirm}
-            onEditManually={handleEditManually}
-          />
-        );
-      
-      case 'dates':
-        return <CalendarPicker onSelectDates={handleSelectDates} />;
+      case 'unavailable-dates':
+        // Debug members data
+        console.log("Members passed to unavailable-dates calendar:", members);
+        
+        return <CalendarPicker 
+                 key="unavailable-dates-calendar"
+                 title="Select Unavailable Dates" 
+                 description="For each member, select dates they cannot attend" 
+                 onSelectDates={handleSelectUnavailableDates} 
+                 fullPage={true}
+                 multiMember={true}
+                 members={members.length > 0 ? members : [{ id: 1, name: "Member 1", unavailableDates: [] }]}
+               />;
       
       case 'constraints':
-        return <ConstraintInput onSetConstraints={handleSetConstraints} />;
+        return <ConstraintInput 
+                 key="constraint-input"
+                 onSetConstraints={handleSetConstraints} 
+                 hasAIComments={true}
+               />;
       
-      case 'preview':
-        return <SchedulePreview schedules={schedules} onSaveSchedule={handleSaveSchedule} />;
+      case 'schedule':
+        return <SchedulePreview 
+                 key="schedule-preview"
+                 schedules={schedules.length > 0 ? schedules : [
+                   { 
+                     lessonGroups: [
+                       { 
+                         date: new Date().toISOString().split('T')[0],
+                         members: members.slice(0, 4)
+                       }
+                     ] 
+                   }
+                 ]} 
+                 onSaveSchedule={handleSaveSchedule} 
+                 fullPage={true}
+               />;
       
       default:
         return null;
     }
   };
   
-  // Get active steps based on flow (AI or manual)
-  const getActiveSteps = () => {
-    // For manual entry, skip the review step
-    if (inputMode === 'manual' && step !== 'review') {
-      return STEPS.filter(s => s.id !== 'review');
-    }
-    // For text entry that extracted dates, potentially skip dates step
-    else if (inputMode === 'text' && lessonDates.length > 0 && step === 'review') {
-      return STEPS.filter(s => s.id !== 'dates');
-    }
-    return STEPS;
-  };
+  // Calculate the current step index
+  const currentStepIndex = STEPS.findIndex(s => s.id === step);
   
-  // Calculate the current step index based on active steps
-  const activeSteps = getActiveSteps();
-  const currentStepIndex = activeSteps.findIndex(s => s.id === step);
+  // Get the active steps (all steps are active in this flow)
+  const activeSteps = STEPS;
   
   return (
     <div className="min-h-screen relative">
@@ -261,10 +286,10 @@ export default function CreateSchedulePage() {
           </div>
           
           {/* Progress steps */}
-          <div className="relative mb-10">
-            <div className="overflow-hidden h-1.5 mb-5 bg-muted rounded-full">
+          <div className="relative mb-12">
+            <div className="overflow-hidden h-2 mb-8 bg-muted/50 rounded-full shadow-inner">
               <div 
-                className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all ease-out duration-500" 
+                className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all ease-out duration-500 shadow-lg" 
                 style={{ width: `${((currentStepIndex + 1) / activeSteps.length) * 100}%` }}
               />
             </div>
@@ -273,6 +298,7 @@ export default function CreateSchedulePage() {
               {activeSteps.map((stepItem, index) => {
                 const isActive = index <= currentStepIndex;
                 const isCurrent = index === currentStepIndex;
+                const isCompleted = index < currentStepIndex;
                 
                 return (
                   <div 
@@ -280,19 +306,29 @@ export default function CreateSchedulePage() {
                     className="flex flex-col items-center"
                   >
                     <div className={`
-                      h-10 w-10 rounded-full flex items-center justify-center mb-2
-                      transition-all duration-300 
+                      h-14 w-14 rounded-full flex items-center justify-center mb-3
+                      transition-all duration-500 
                       ${isCurrent 
-                        ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-md scale-110' 
-                        : isActive 
-                          ? 'bg-primary/20 text-primary' 
-                          : 'bg-muted text-muted-foreground'
+                        ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg scale-110 ring-4 ring-primary/20' 
+                        : isCompleted
+                          ? 'bg-primary text-white shadow-md'
+                          : isActive 
+                            ? 'bg-primary/20 text-primary' 
+                            : 'bg-muted/80 text-muted-foreground'
                       }
                     `}>
-                      {stepItem.icon}
+                      {isCompleted ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <div className="h-6 w-6">
+                          {stepItem.icon}
+                        </div>
+                      )}
                     </div>
                     <span className={`
-                      text-xs font-medium transition-colors
+                      text-sm font-semibold transition-colors
                       ${isActive 
                         ? 'text-foreground' 
                         : 'text-muted-foreground'
@@ -307,7 +343,7 @@ export default function CreateSchedulePage() {
           </div>
         </header>
         
-        <main className="min-h-[500px]">
+        <main className="min-h-[500px] w-full">
           {renderStep()}
         </main>
       </div>
