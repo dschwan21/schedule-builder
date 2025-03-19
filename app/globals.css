@@ -1087,7 +1087,7 @@ svg {
 /* PRINT STYLES */
 @media print {
   @page {
-    size: letter;
+    size: letter landscape;
     margin: 0.5in;
   }
   
@@ -1166,5 +1166,115 @@ svg {
   
   .print\:pt-0 {
     padding-top: 0 !important;
+  }
+  
+  /* Status colors for print */
+  .print\:bg-green-100 {
+    background-color: #dcfce7 !important;
+  }
+  
+  .print\:text-green-800 {
+    color: #166534 !important;
+  }
+  
+  .print\:bg-blue-100 {
+    background-color: #dbeafe !important;
+  }
+  
+  .print\:text-blue-800 {
+    color: #1e40af !important;
+  }
+  
+  .print\:bg-red-100 {
+    background-color: #fee2e2 !important;
+  }
+  
+  .print\:text-red-800 {
+    color: #991b1b !important;
+  }
+  
+  .print\:bg-gray-100 {
+    background-color: #f3f4f6 !important;
+  }
+  
+  /* Grid schedule print styles for inline styles */
+  table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    margin: 1rem 0 2rem 0 !important;
+    border: 3px solid #9ca3af !important;
+    table-layout: fixed !important;
+  }
+  
+  th, td {
+    border: 2px solid #9ca3af !important;
+    padding: 12px !important;
+  }
+  
+  th {
+    background-color: #e5e7eb !important;
+    font-weight: bold !important;
+    font-size: 16px !important;
+    color: #111827 !important;
+    height: 60px !important;
+    text-align: center !important;
+  }
+  
+  td {
+    height: 70px !important;
+    vertical-align: middle !important;
+  }
+  
+  /* Prevent table breaking across pages */
+  table, tr, td, th {
+    page-break-inside: avoid !important;
+  }
+  
+  /* Force colors for print */
+  td[style*="bbf7d0"] {
+    background-color: #bbf7d0 !important; /* Green for ATTENDING */
+    color: #166534 !important;
+  }
+  
+  td[style*="dbeafe"] {
+    background-color: #dbeafe !important; /* Blue for AVAILABLE */
+    color: #1e40af !important;
+  }
+  
+  td[style*="fee2e2"] {
+    background-color: #fee2e2 !important; /* Red for UNAVAILABLE */
+    color: #991b1b !important;
+  }
+  
+  /* Make sure legend colors print properly */
+  div[style*="bbf7d0"] {
+    background-color: #bbf7d0 !important;
+    border: 2px solid #9ca3af !important;
+  }
+  
+  div[style*="dbeafe"] {
+    background-color: #dbeafe !important;
+    border: 2px solid #9ca3af !important;
+  }
+  
+  div[style*="fee2e2"] {
+    background-color: #fee2e2 !important;
+    border: 2px solid #9ca3af !important;
+  }
+  
+  /* Set correct font sizes and weights */
+  td {
+    font-weight: bold !important;
+    font-size: 14px !important;
+  }
+  
+  /* Zebra striping */
+  tr:nth-child(even) {
+    background-color: #f9fafb !important;
+  }
+  
+  tr:nth-child(odd) {
+    background-color: #ffffff !important;
   }
 }

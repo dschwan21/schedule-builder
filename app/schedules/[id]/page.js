@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { formatDate } from '../../../lib/utils';
+import { use } from 'react';
 
 export default function ScheduleDetailPage({ params }) {
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { id } = params;
+  const { id } = use(params);
 
   useEffect(() => {
     // In a real app, you would fetch the specific schedule from a database
@@ -129,14 +130,56 @@ export default function ScheduleDetailPage({ params }) {
     return acc;
   }, {});
 
+  // Enhance the mock data to include available members who are not attending
+  if (schedule) {
+    // Get all unique dates
+    const allDates = Array.from(
+      new Set(schedule.lessonGroups.map(group => group.date))
+    ).sort();
+    
+    // Get all unique members across all lesson groups
+    const allMembers = Array.from(
+      new Set(schedule.lessonGroups.flatMap(group => group.members.map(m => m.name)))
+    ).sort();
+    
+    // Add mock availability data
+    schedule.memberAvailability = {};
+    
+    // For each date and member, create availability status
+    allDates.forEach(date => {
+      schedule.memberAvailability[date] = {};
+      
+      allMembers.forEach(memberName => {
+        // Check if member is attending on this date
+        const isAttending = schedule.lessonGroups.some(group => 
+          group.date === date && group.members.some(m => m.name === memberName)
+        );
+        
+        // Randomly assign 'AVAILABLE' status to some non-attending members
+        const isAvailable = isAttending ? true : Math.random() > 0.3;
+        
+        schedule.memberAvailability[date][memberName] = isAttending 
+          ? 'ATTENDING' 
+          : isAvailable 
+            ? 'AVAILABLE' 
+            : 'UNAVAILABLE';
+      });
+    });
+  }
+
   // Get all unique members for attendance tracking
   const allMembers = Array.from(
     new Set(schedule.lessonGroups.flatMap(group => group.members.map(m => m.name)))
   ).sort();
+  
+  // Get all unique dates for the schedule
+  const allDates = Array.from(
+    new Set(schedule.lessonGroups.map(group => group.date))
+  ).sort((a, b) => new Date(a) - new Date(b));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 p-6 print:bg-white print:p-0">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <header className="mb-8 print:mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
           <Link 
             href="/schedules" 
@@ -214,7 +257,7 @@ export default function ScheduleDetailPage({ params }) {
             </div>
           </div>
           
-          {/* Schedule Calendar */}
+          {/* Grid Style Schedule */}
           <div className="p-6">
             <h2 className="text-xl font-bold mb-6 text-gray-800 dark:text-gray-200 flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
@@ -223,39 +266,155 @@ export default function ScheduleDetailPage({ params }) {
               Lesson Schedule
             </h2>
             
-            <div className="space-y-8">
-              {Object.entries(groupedByDate).map(([date, groups]) => (
-                <div key={date} className="bg-blue-50 dark:bg-blue-900/10 print:bg-blue-50 rounded-xl overflow-hidden shadow-sm print:shadow-none print:border print:border-blue-200">
-                  <div className="bg-blue-500 text-white px-6 py-4 print:bg-blue-100 print:text-blue-900">
-                    <h3 className="text-lg font-bold">{formatDisplayDate(date)}</h3>
-                    <p className="text-blue-100 print:text-blue-700">{groups[0].time}</p>
-                  </div>
+            <div className="w-full overflow-x-auto my-8">
+              <style jsx>{`
+                table {
+                  border-collapse: separate;
+                  border-spacing: 0;
+                  width: 100%;
+                  border: 3px solid #9ca3af;
+                  table-layout: fixed;
+                }
+                
+                th, td {
+                  border: 2px solid #9ca3af;
+                  padding: 12px;
+                }
+                
+                th {
+                  background-color: #e5e7eb;
+                  font-weight: bold;
+                  color: #111827;
+                  height: 60px;
+                }
+                
+                tr:nth-child(even) {
+                  background-color: #f9fafb;
+                }
+                
+                tr:nth-child(odd) {
+                  background-color: #ffffff;
+                }
+                
+                @media (prefers-color-scheme: dark) {
+                  table {
+                    border-color: #4b5563;
+                  }
                   
-                  <div className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {allMembers.map(member => {
-                        const isAttending = groups.some(group => 
-                          group.members.some(m => m.name === member)
-                        );
+                  th, td {
+                    border-color: #4b5563;
+                  }
+                  
+                  th {
+                    background-color: #374151;
+                    color: #e5e7eb;
+                  }
+                  
+                  tr:nth-child(even) {
+                    background-color: #1f2937;
+                  }
+                  
+                  tr:nth-child(odd) {
+                    background-color: #111827;
+                  }
+                }
+              `}</style>
+              
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{width: '200px'}} className="text-left">
+                      Date
+                    </th>
+                    {allMembers.map(member => (
+                      <th key={member} style={{width: `${100 / (allMembers.length + 1)}%`, textAlign: 'center'}}>
+                        {member}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDates.map((date, dateIndex) => {
+                    // Get time from the first group with this date
+                    const group = schedule.lessonGroups.find(g => g.date === date);
+                    const time = group?.time || ''; 
+                    
+                    return (
+                      <tr key={date} style={{height: '80px'}}>
+                        <td className="font-medium text-left" style={{verticalAlign: 'middle'}}>
+                          <div className="text-base">{formatDisplayDate(date)}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{time}</div>
+                        </td>
                         
-                        return (
-                          <div key={member} className="flex items-center space-x-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 print:border-blue-200">
-                            <div className={`w-5 h-5 rounded-full flex-shrink-0 ${
-                              isAttending 
-                                ? 'bg-green-500 print:bg-green-500' 
-                                : 'bg-red-500 print:bg-red-500'
-                            }`}></div>
-                            <span className="font-medium">{member}</span>
-                            <span className="text-sm text-gray-500 dark:text-gray-400 ml-auto">
-                              {isAttending ? 'Attending' : 'Not Attending'}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                        {allMembers.map(member => {
+                          const status = schedule.memberAvailability[date][member];
+                          
+                          let bgColor, textColor;
+                          if (status === 'ATTENDING') {
+                            bgColor = '#bbf7d0'; // light green
+                            textColor = '#166534'; // dark green
+                          } else if (status === 'AVAILABLE') {
+                            bgColor = '#dbeafe'; // light blue
+                            textColor = '#1e40af'; // dark blue
+                          } else {
+                            bgColor = '#fee2e2'; // light red
+                            textColor = '#991b1b'; // dark red
+                          }
+                          
+                          return (
+                            <td 
+                              key={`${date}-${member}`} 
+                              style={{
+                                backgroundColor: bgColor,
+                                color: textColor,
+                                textAlign: 'center',
+                                fontWeight: 'bold',
+                                verticalAlign: 'middle'
+                              }}
+                            >
+                              {status}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Status Legend */}
+            <div className="my-8 flex flex-wrap gap-8 justify-center border-2 border-gray-400 dark:border-gray-600 p-6 bg-white dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div style={{
+                  width: '24px', 
+                  height: '24px', 
+                  backgroundColor: '#bbf7d0',
+                  border: '2px solid #9ca3af', 
+                  display: 'inline-block'
+                }}></div>
+                <span className="text-base font-medium text-gray-700 dark:text-gray-300">ATTENDING - Scheduled to attend</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div style={{
+                  width: '24px', 
+                  height: '24px', 
+                  backgroundColor: '#dbeafe',
+                  border: '2px solid #9ca3af', 
+                  display: 'inline-block'
+                }}></div>
+                <span className="text-base font-medium text-gray-700 dark:text-gray-300">AVAILABLE - Can attend (backup)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div style={{
+                  width: '24px', 
+                  height: '24px', 
+                  backgroundColor: '#fee2e2',
+                  border: '2px solid #9ca3af', 
+                  display: 'inline-block'
+                }}></div>
+                <span className="text-base font-medium text-gray-700 dark:text-gray-300">UNAVAILABLE - Cannot attend</span>
+              </div>
             </div>
           </div>
           

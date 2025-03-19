@@ -219,11 +219,12 @@ export default function CreateSchedulePage() {
         return <CalendarPicker 
                  key="unavailable-dates-calendar"
                  title="Select Unavailable Dates" 
-                 description="For each member, select dates they cannot attend" 
+                 description="For each member, select lesson dates they cannot attend (only lesson dates can be selected)" 
                  onSelectDates={handleSelectUnavailableDates} 
                  fullPage={true}
                  multiMember={true}
                  members={members.length > 0 ? members : [{ id: 1, name: "Member 1", unavailableDates: [] }]}
+                 allowedDates={clinicDates} // Only allow selection of clinic dates for unavailability
                />;
       
       case 'constraints':
