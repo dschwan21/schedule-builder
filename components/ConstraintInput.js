@@ -2,17 +2,19 @@
 
 import { useState } from 'react';
 
-export default function ConstraintInput({ onSetConstraints }) {
+export default function ConstraintInput({ onSetConstraints, hasAIComments = false }) {
   const [maxGroupSize, setMaxGroupSize] = useState(4);
   const [mixGroups, setMixGroups] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [comments, setComments] = useState("");
   
   const handleSubmit = (e) => {
     e.preventDefault();
     
     onSetConstraints({
       maxGroupSize,
-      mixGroups
+      mixGroups,
+      comments
     });
   };
   
@@ -126,6 +128,34 @@ export default function ConstraintInput({ onSetConstraints }) {
               </div>
             </div>
           </div>
+          
+          {hasAIComments && (
+            <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm mb-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                
+                <div className="flex-1">
+                  <h4 className="font-medium">Additional Comments</h4>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Add any special instructions or constraints for the AI scheduler.
+                  </p>
+                  
+                  <div className="mt-4">
+                    <textarea
+                      className="w-full min-h-[120px] input"
+                      placeholder="Example: 'Jennifer and Michael should always be in the same group' or 'Try to ensure each member has at least one lesson with everyone else'"
+                      value={comments}
+                      onChange={(e) => setComments(e.target.value)}
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {expanded && (
             <div className="animate-slide-down bg-card border border-border/40 rounded-xl p-5 shadow-sm">
