@@ -8,44 +8,77 @@ export default function SchedulesPage() {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // In a real app, you would fetch saved schedules from a database or localStorage
-    // For now, we'll use mock data
-    const mockSchedules = [
-      {
-        id: 'schedule-1',
-        name: 'April Lessons',
-        createdAt: '2025-03-15T14:30:00Z',
-        lessonGroups: [
-          {
-            date: '2025-04-08',
-            members: [
-              { id: 1, name: 'Alice Smith' },
-              { id: 3, name: 'Carol Williams' },
-              { id: 4, name: 'David Brown' }
-            ]
-          },
-          {
-            date: '2025-04-15',
-            members: [
-              { id: 2, name: 'Bob Johnson' },
-              { id: 3, name: 'Carol Williams' },
-              { id: 4, name: 'David Brown' }
-            ]
-          },
-          {
-            date: '2025-04-22',
-            members: [
-              { id: 1, name: 'Alice Smith' },
-              { id: 2, name: 'Bob Johnson' },
-              { id: 3, name: 'Carol Williams' },
-              { id: 4, name: 'David Brown' }
-            ]
-          }
-        ]
-      }
-    ];
+    // Check if we have a saved schedule in localStorage
+    const savedScheduleStr = localStorage.getItem('savedSchedule');
     
-    setSchedules(mockSchedules);
+    let allSchedules = [];
+    
+    // If we have a saved schedule, parse it and add it to our schedules list
+    if (savedScheduleStr) {
+      try {
+        const savedSchedule = JSON.parse(savedScheduleStr);
+        
+        // Format the saved schedule for display
+        const formattedSchedule = {
+          id: savedSchedule.id || `schedule-${new Date().getTime()}`,
+          name: 'Tennis Clinic Schedule',
+          createdAt: savedSchedule.savedAt || new Date().toISOString(),
+          lessonGroups: savedSchedule.lessonGroups || []
+        };
+        
+        // Ensure the lessonGroups are properly formatted
+        if (formattedSchedule.lessonGroups.length > 0) {
+          console.log("First lesson group sample:", formattedSchedule.lessonGroups[0]);
+        }
+        
+        allSchedules.push(formattedSchedule);
+        console.log('Loaded saved schedule from localStorage:', formattedSchedule);
+      } catch (error) {
+        console.error('Error parsing saved schedule:', error);
+      }
+    }
+    
+    // Add the mock schedule as a fallback or additional schedule
+    const mockSchedule = {
+      id: 'schedule-1',
+      name: 'April Lessons',
+      createdAt: '2025-03-15T14:30:00Z',
+      lessonGroups: [
+        {
+          date: '2025-04-08',
+          members: [
+            { id: 1, name: 'Alice Smith' },
+            { id: 3, name: 'Carol Williams' },
+            { id: 4, name: 'David Brown' }
+          ]
+        },
+        {
+          date: '2025-04-15',
+          members: [
+            { id: 2, name: 'Bob Johnson' },
+            { id: 3, name: 'Carol Williams' },
+            { id: 4, name: 'David Brown' }
+          ]
+        },
+        {
+          date: '2025-04-22',
+          members: [
+            { id: 1, name: 'Alice Smith' },
+            { id: 2, name: 'Bob Johnson' },
+            { id: 3, name: 'Carol Williams' },
+            { id: 4, name: 'David Brown' }
+          ]
+        }
+      ]
+    };
+    
+    // Only add the mock schedule if we don't have a saved schedule
+    // and we're in development mode (not needed for regular use)
+    if (allSchedules.length === 0 && false) {
+      allSchedules.push(mockSchedule);
+    }
+    
+    setSchedules(allSchedules);
     setLoading(false);
   }, []);
   
@@ -137,7 +170,7 @@ export default function SchedulesPage() {
                   
                   <div className="mt-6">
                     <Link
-                      href={`/schedules/${schedule.id}`}
+                      href={schedule.id === 'schedule-1' ? `/schedules/${schedule.id}` : `/schedules/schedule-latest`}
                       className="inline-flex items-center text-emerald-600 dark:text-emerald-400 font-medium hover:text-emerald-800 dark:hover:text-emerald-300"
                     >
                       View Details

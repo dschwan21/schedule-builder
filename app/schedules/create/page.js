@@ -65,10 +65,7 @@ const STEPS = [
 export default function CreateSchedulePage() {
   const router = useRouter();
   const [step, setStep] = useState('clinic-dates');
-  // Old input mode that was removed but might be referenced
-  const inputMode = 'manual';
   const [members, setMembers] = useState([]);
-  const [numMembers, setNumMembers] = useState(0);
   const [clinicDates, setClinicDates] = useState([]);
   const [unavailableDates, setUnavailableDates] = useState({});
   const [constraints, setConstraints] = useState({ 
@@ -81,22 +78,10 @@ export default function CreateSchedulePage() {
   // Handle clinic dates selection
   const handleSelectClinicDates = (selectedDates) => {
     setClinicDates(selectedDates);
-    setStep('members');
+    goToNextStep(); // Use the navigation function instead of direct step setting
   };
   
-  // Handle setting number of members and creating member slots
-  const handleSetMemberCount = (count) => {
-    setNumMembers(count);
-    
-    // Create empty member slots
-    const newMembers = Array.from({ length: count }, (_, index) => ({
-      id: index + 1,
-      name: '',
-      unavailableDates: []
-    }));
-    
-    setMembers(newMembers);
-  };
+  // This function was replaced by the improved MemberInput component functionality
   
   // Handle adding members
   const handleAddMembers = (newMembers) => {
@@ -112,7 +97,7 @@ export default function CreateSchedulePage() {
       });
     });
     
-    setStep('unavailable-dates');
+    goToNextStep(); // Use the navigation function
   };
   
   // Handle unavailable dates selection
@@ -129,24 +114,97 @@ export default function CreateSchedulePage() {
     });
     
     setMembers(updatedMembers);
-    setStep('constraints');
+    goToNextStep(); // Use the navigation function
   };
   
   // Handle constraint setup
   const handleSetConstraints = (newConstraints) => {
     setConstraints(newConstraints);
     
-    // Generate schedule permutations based on inputs
-    const generatedSchedules = generateSchedules(members, clinicDates, newConstraints);
-    setSchedules(generatedSchedules);
+    // Add more detailed logging for constraint validation
+    console.log("Applying constraints:", newConstraints);
+    console.log("Members available:", members);
+    console.log("Clinic dates:", clinicDates);
     
-    setStep('schedule');
+    // Check if we have valid inputs
+    if (!members || members.length === 0) {
+      console.error("No members provided for schedule generation");
+      setSchedules([]);
+      goToNextStep(); // Use the navigation function
+      return;
+    }
+    
+    if (!clinicDates || clinicDates.length === 0) {
+      console.error("No clinic dates provided for schedule generation");
+      setSchedules([]);
+      goToNextStep(); // Use the navigation function
+      return;
+    }
+    
+    console.log("Clinic dates before processing:", clinicDates);
+    
+    // Ensure consistent date format (YYYY-MM-DD) for clinic dates
+    const formattedClinicDates = clinicDates.map(date => 
+      new Date(date).toISOString().split('T')[0]
+    );
+    
+    console.log("Formatted clinic dates for schedule generation:", formattedClinicDates);
+    
+    // Validate members have proper structure
+    const validMembers = members.filter(member => 
+      member && member.id && member.name && Array.isArray(member.unavailableDates)
+    );
+    
+    if (validMembers.length !== members.length) {
+      console.error("Some members have invalid structure:", 
+        members.filter(m => !m || !m.id || !m.name || !Array.isArray(m.unavailableDates))
+      );
+    }
+    
+    // Generate schedule permutations based on inputs
+    try {
+      const generatedSchedules = generateSchedules(validMembers, formattedClinicDates, newConstraints);
+      console.log("Generated schedules:", generatedSchedules);
+      
+      if (!generatedSchedules || generatedSchedules.length === 0) {
+        console.error("No schedules were generated");
+      } else {
+        // Validate structure of generated schedules
+        const validSchedules = generatedSchedules.filter(schedule => 
+          schedule && 
+          Array.isArray(schedule.lessonGroups) && 
+          schedule.lessonGroups.length > 0
+        );
+        
+        console.log(`Generated ${validSchedules.length} valid schedules out of ${generatedSchedules.length} total`);
+        setSchedules(validSchedules);
+      }
+    } catch (error) {
+      console.error("Error generating schedules:", error);
+      setSchedules([]);
+    }
+    
+    goToNextStep(); // Use the navigation function
   };
   
   // Handle saving a schedule
   const handleSaveSchedule = (schedule) => {
-    // In a real app, you would save this to a database or localStorage
-    console.log('Saving schedule:', schedule);
+    // Add a timestamp to the schedule 
+    const enhancedSchedule = {
+      ...schedule,
+      savedAt: new Date().toISOString(),
+      name: 'Tennis Clinic Schedule'
+    };
+    
+    console.log('Saving schedule:', enhancedSchedule);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem('savedSchedule', JSON.stringify(enhancedSchedule));
+      console.log('Successfully saved schedule to localStorage');
+    } catch (error) {
+      console.error('Error saving schedule to localStorage:', error);
+    }
     
     // Navigate to the schedules page
     router.push('/schedules');
@@ -162,54 +220,21 @@ export default function CreateSchedulePage() {
                  description="Select the dates when lessons will be held" 
                  onSelectDates={handleSelectClinicDates} 
                  fullPage={true}
+                 // The first step doesn't need a back button
+                 onBack={null}
+                 onNext={goToNextStep}
                />;
       
       case 'members':
         return (
-          <div className="card p-8 animate-slide-up">
-            <h2 className="text-2xl font-bold mb-8 flex items-center gap-3">
-              <div className="h-8 w-8 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                </svg>
-              </div>
-              Add Members
-            </h2>
-            
-            {numMembers === 0 ? (
-              <div className="card p-6 border-2 border-border/50 mb-8">
-                <h3 className="font-medium text-lg mb-4">How many members will participate?</h3>
-                <div className="flex items-center gap-4 mb-6">
-                  <input 
-                    type="number" 
-                    min="1" 
-                    max="20" 
-                    className="input w-full text-lg" 
-                    placeholder="Enter number of members" 
-                    onChange={(e) => setNumMembers(parseInt(e.target.value) || 0)}
-                    value={numMembers || ''}
-                  />
-                </div>
-                <button 
-                  className="button button-primary"
-                  disabled={numMembers < 1}
-                  onClick={() => handleSetMemberCount(numMembers)}
-                >
-                  Continue
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <MemberInput 
-                key="member-input"
-                initialMembers={members} 
-                onAddMembers={handleAddMembers} 
-                showUnavailability={false}
-              />
-            )}
-          </div>
+          <MemberInput 
+            key="member-input"
+            initialMembers={members} 
+            onAddMembers={handleAddMembers} 
+            showUnavailability={false}
+            onBack={goToPreviousStep}
+            onNext={goToNextStep}
+          />
         );
       
       case 'unavailable-dates':
@@ -225,6 +250,8 @@ export default function CreateSchedulePage() {
                  multiMember={true}
                  members={members.length > 0 ? members : [{ id: 1, name: "Member 1", unavailableDates: [] }]}
                  allowedDates={clinicDates} // Only allow selection of clinic dates for unavailability
+                 onBack={goToPreviousStep}
+                 onNext={goToNextStep}
                />;
       
       case 'constraints':
@@ -232,23 +259,20 @@ export default function CreateSchedulePage() {
                  key="constraint-input"
                  onSetConstraints={handleSetConstraints} 
                  hasAIComments={true}
+                 onBack={goToPreviousStep}
+                 onNext={goToNextStep}
                />;
       
       case 'schedule':
         return <SchedulePreview 
                  key="schedule-preview"
-                 schedules={schedules.length > 0 ? schedules : [
-                   { 
-                     lessonGroups: [
-                       { 
-                         date: new Date().toISOString().split('T')[0],
-                         members: members.slice(0, 4)
-                       }
-                     ] 
-                   }
-                 ]} 
+                 schedules={schedules.length > 0 ? schedules : []} 
                  onSaveSchedule={handleSaveSchedule} 
                  fullPage={true}
+                 constraints={constraints}
+                 onBack={goToPreviousStep}
+                 // No next step for the final screen
+                 onNext={null}
                />;
       
       default:
@@ -261,6 +285,32 @@ export default function CreateSchedulePage() {
   
   // Get the active steps (all steps are active in this flow)
   const activeSteps = STEPS;
+  
+  // Function to navigate to a specific step
+  const navigateToStep = (targetStep) => {
+    // Only allow navigation to steps we've already completed or the current step
+    const targetIndex = STEPS.findIndex(s => s.id === targetStep);
+    const currentIndex = currentStepIndex;
+    
+    // Allow free navigation between steps
+    setStep(targetStep);
+  };
+
+  // Function to navigate to the previous step
+  const goToPreviousStep = () => {
+    if (currentStepIndex > 0) {
+      const previousStep = STEPS[currentStepIndex - 1].id;
+      navigateToStep(previousStep);
+    }
+  };
+
+  // Function to navigate to the next step
+  const goToNextStep = () => {
+    if (currentStepIndex < STEPS.length - 1) {
+      const nextStep = STEPS[currentStepIndex + 1].id;
+      navigateToStep(nextStep);
+    }
+  };
   
   return (
     <div className="min-h-screen relative">
@@ -302,9 +352,12 @@ export default function CreateSchedulePage() {
                 const isCompleted = index < currentStepIndex;
                 
                 return (
-                  <div 
+                  <button 
                     key={stepItem.id}
-                    className="flex flex-col items-center"
+                    className="flex flex-col items-center focus:outline-none"
+                    onClick={() => isCompleted ? navigateToStep(stepItem.id) : null}
+                    disabled={!isCompleted && !isCurrent}
+                    title={isCompleted ? `Return to ${stepItem.label}` : isCurrent ? `Current step: ${stepItem.label}` : `Complete previous steps first`}
                   >
                     <div className={`
                       h-14 w-14 rounded-full flex items-center justify-center mb-3
@@ -312,7 +365,7 @@ export default function CreateSchedulePage() {
                       ${isCurrent 
                         ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg scale-110 ring-4 ring-primary/20' 
                         : isCompleted
-                          ? 'bg-primary text-white shadow-md'
+                          ? 'bg-primary text-white shadow-md hover:scale-105 cursor-pointer'
                           : isActive 
                             ? 'bg-primary/20 text-primary' 
                             : 'bg-muted/80 text-muted-foreground'
@@ -337,7 +390,7 @@ export default function CreateSchedulePage() {
                     `}>
                       {stepItem.label}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -346,6 +399,34 @@ export default function CreateSchedulePage() {
         
         <main className="min-h-[500px] w-full">
           {renderStep()}
+          
+          {/* Add navigation buttons */}
+          <div className="flex justify-between mt-8">
+            <button
+              type="button"
+              onClick={goToPreviousStep}
+              disabled={currentStepIndex === 0}
+              className={`button ${currentStepIndex === 0 ? 'button-disabled opacity-50 cursor-not-allowed' : 'button-secondary'}`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
+              Previous Step
+            </button>
+            
+            {currentStepIndex < STEPS.length - 1 && (
+              <button
+                type="button"
+                onClick={goToNextStep}
+                className="button button-primary"
+              >
+                Next Step
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            )}
+          </div>
         </main>
       </div>
     </div>
