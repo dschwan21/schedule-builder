@@ -11,49 +11,45 @@ export default function ScheduleDetailPage({ params }) {
   const { id } = use(params);
 
   useEffect(() => {
-    // In a real app, you would fetch the specific schedule from a database
-    // For now, we'll use mock data
-    const mockSchedule = {
-      id: 'schedule-1',
-      name: 'April Lessons',
-      createdAt: '2025-03-15T14:30:00Z',
-      lessonGroups: [
-        {
-          date: '2025-04-08',
-          time: '4:00 PM - 5:30 PM',
-          members: [
-            { id: 1, name: 'Alice Smith' },
-            { id: 3, name: 'Carol Williams' },
-            { id: 4, name: 'David Brown' }
-          ]
-        },
-        {
-          date: '2025-04-15',
-          time: '4:00 PM - 5:30 PM',
-          members: [
-            { id: 2, name: 'Bob Johnson' },
-            { id: 3, name: 'Carol Williams' },
-            { id: 4, name: 'David Brown' }
-          ]
-        },
-        {
-          date: '2025-04-22',
-          time: '4:00 PM - 5:30 PM',
-          members: [
-            { id: 1, name: 'Alice Smith' },
-            { id: 2, name: 'Bob Johnson' },
-            { id: 3, name: 'Carol Williams' },
-            { id: 4, name: 'David Brown' }
-          ]
-        }
-      ]
-    };
+    console.log('Loading schedule with ID:', id);
     
-    // Simulate API call
+    // Try to load the saved schedule from localStorage first
+    const savedScheduleStr = localStorage.getItem('savedSchedule');
+    let scheduleData = null;
+    
+    if (savedScheduleStr) {
+      try {
+        const savedSchedule = JSON.parse(savedScheduleStr);
+        console.log('Found saved schedule in localStorage:', savedSchedule);
+        
+        if (id === savedSchedule.id || id === 'schedule-latest') {
+          // Use the saved schedule if it matches the requested ID or if requesting the latest
+          scheduleData = {
+            ...savedSchedule,
+            name: savedSchedule.name || 'Tennis Clinic Schedule',
+            createdAt: savedSchedule.savedAt || new Date().toISOString(),
+            // Add a default 'time' property to each lesson group if not present
+            lessonGroups: savedSchedule.lessonGroups.map(group => ({
+              ...group,
+              time: group.time || '4:00 PM - 5:30 PM'
+            }))
+          };
+          console.log('Using saved schedule:', scheduleData);
+        }
+      } catch (error) {
+        console.error('Error parsing saved schedule:', error);
+      }
+    }
+    
+    // No fallback to mock schedule - if we don't have a real schedule, show error
+    
+    // Set the schedule data and finish loading
     setTimeout(() => {
-      setSchedule(mockSchedule);
+      if (scheduleData) {
+        setSchedule(scheduleData);
+      }
       setLoading(false);
-    }, 500);
+    }, 300);
   }, [id]);
 
   const formatDisplayDate = (dateString) => {
@@ -130,41 +126,69 @@ export default function ScheduleDetailPage({ params }) {
     return acc;
   }, {});
 
-  // Enhance the mock data to include available members who are not attending
+  // Build the availability grid using the actual schedule data
   if (schedule) {
-    // Get all unique dates
+    console.log("Processing schedule for grid view:", schedule);
+    
+    // Get all unique dates from the schedule
     const allDates = Array.from(
       new Set(schedule.lessonGroups.map(group => group.date))
     ).sort();
+    console.log("All dates:", allDates);
     
-    // Get all unique members across all lesson groups
-    const allMembers = Array.from(
-      new Set(schedule.lessonGroups.flatMap(group => group.members.map(m => m.name)))
-    ).sort();
+    // Collect all unique members from all lesson groups
+    const attendingMembersSet = new Set();
+    schedule.lessonGroups.forEach(group => {
+      group.members.forEach(member => {
+        attendingMembersSet.add(member.name);
+      });
+    });
     
-    // Add mock availability data
+    // Convert to array and sort
+    const allMembers = Array.from(attendingMembersSet).sort();
+    console.log("All members:", allMembers);
+    
+    // Initialize the member availability object
     schedule.memberAvailability = {};
     
-    // For each date and member, create availability status
+    // For each date, determine member status
     allDates.forEach(date => {
       schedule.memberAvailability[date] = {};
       
-      allMembers.forEach(memberName => {
-        // Check if member is attending on this date
-        const isAttending = schedule.lessonGroups.some(group => 
-          group.date === date && group.members.some(m => m.name === memberName)
-        );
-        
-        // Randomly assign 'AVAILABLE' status to some non-attending members
-        const isAvailable = isAttending ? true : Math.random() > 0.3;
-        
-        schedule.memberAvailability[date][memberName] = isAttending 
-          ? 'ATTENDING' 
-          : isAvailable 
-            ? 'AVAILABLE' 
-            : 'UNAVAILABLE';
+      // Find which members are attending on this date
+      const attendingMembersOnDate = new Set();
+      schedule.lessonGroups.forEach(group => {
+        if (group.date === date) {
+          group.members.forEach(member => {
+            attendingMembersOnDate.add(member.name);
+          });
+        }
       });
+      
+      // Set status for each member
+      allMembers.forEach(memberName => {
+        const isAttending = attendingMembersOnDate.has(memberName);
+        
+        // Check if member is marked as unavailable for this date
+        // If member is in the schedule but not attending on this date, they're assumed "available"
+        // Otherwise, they're attending
+        schedule.memberAvailability[date][memberName] = isAttending ? 'ATTENDING' : 'AVAILABLE';
+      });
+      
+      // Add any unassigned members as AVAILABLE 
+      if (schedule.unassignedMembersByDate && schedule.unassignedMembersByDate[date]) {
+        schedule.unassignedMembersByDate[date].forEach(member => {
+          // Add to all members list if not already there
+          if (!allMembers.includes(member.name)) {
+            allMembers.push(member.name);
+          }
+          // Mark as UNAVAILABLE (since they couldn't be assigned to a group)
+          schedule.memberAvailability[date][member.name] = 'UNAVAILABLE';
+        });
+      }
     });
+    
+    console.log("Generated member availability:", schedule.memberAvailability);
   }
 
   // Get all unique members for attendance tracking

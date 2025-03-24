@@ -4,6 +4,8 @@ import { useState } from 'react';
 
 export default function ConstraintInput({ onSetConstraints, hasAIComments = false }) {
   const [maxGroupSize, setMaxGroupSize] = useState(4);
+  const [minGroupSize, setMinGroupSize] = useState(2);
+  const [strictMinSize, setStrictMinSize] = useState(true);
   const [mixGroups, setMixGroups] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [comments, setComments] = useState("");
@@ -13,6 +15,8 @@ export default function ConstraintInput({ onSetConstraints, hasAIComments = fals
     
     onSetConstraints({
       maxGroupSize,
+      minGroupSize,
+      strictMinSize,
       mixGroups,
       comments
     });
@@ -45,48 +49,131 @@ export default function ConstraintInput({ onSetConstraints, hasAIComments = fals
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+          <div className="space-y-6">
+            <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                    </svg>
+                  </div>
+                  <label className="block font-medium">
+                    Maximum Group Size
+                  </label>
+                </div>
+                
+                <div className="w-full sm:w-auto">
+                  <div className="flex items-center">
+                    <button 
+                      type="button" 
+                      onClick={() => setMaxGroupSize(Math.max(minGroupSize, maxGroupSize - 1))}
+                      className="h-10 w-10 rounded-l-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    <div className="px-6 h-10 flex items-center justify-center border-t border-b border-border bg-muted/20">
+                      <span className="text-lg font-medium">{maxGroupSize}</span>
+                    </div>
+                    
+                    <button 
+                      type="button" 
+                      onClick={() => setMaxGroupSize(Math.min(8, maxGroupSize + 1))}
+                      className="h-10 w-10 rounded-r-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Maximum players per group (2-8)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                    </svg>
+                  </div>
+                  <label className="block font-medium">
+                    Minimum Group Size
+                  </label>
+                </div>
+                
+                <div className="w-full sm:w-auto">
+                  <div className="flex items-center">
+                    <button 
+                      type="button" 
+                      onClick={() => setMinGroupSize(Math.max(2, minGroupSize - 1))}
+                      className="h-10 w-10 rounded-l-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    <div className="px-6 h-10 flex items-center justify-center border-t border-b border-border bg-muted/20">
+                      <span className="text-lg font-medium">{minGroupSize}</span>
+                    </div>
+                    
+                    <button 
+                      type="button" 
+                      onClick={() => setMinGroupSize(Math.min(maxGroupSize, minGroupSize + 1))}
+                      className="h-10 w-10 rounded-r-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Minimum required players per group (2-{maxGroupSize})
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <label className="block font-medium" htmlFor="max-group-size">
-                  Group Size
-                </label>
-              </div>
-              
-              <div className="w-full sm:w-auto">
-                <div className="flex items-center">
-                  <button 
-                    type="button" 
-                    onClick={() => setMaxGroupSize(Math.max(2, maxGroupSize - 1))}
-                    className="h-10 w-10 rounded-l-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                  
-                  <div className="px-6 h-10 flex items-center justify-center border-t border-b border-border bg-muted/20">
-                    <span className="text-lg font-medium">{maxGroupSize}</span>
+                
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <label className="block font-medium">Strict Enforcement</label>
+                    
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox"
+                        checked={strictMinSize}
+                        onChange={(e) => setStrictMinSize(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-muted rounded-full peer 
+                        peer-checked:after:translate-x-full peer-checked:after:border-white 
+                        after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                        after:bg-white after:border-muted after:border after:rounded-full 
+                        after:h-5 after:w-5 after:transition-all 
+                        peer-checked:bg-red-500"></div>
+                    </label>
                   </div>
                   
-                  <button 
-                    type="button" 
-                    onClick={() => setMaxGroupSize(Math.min(8, maxGroupSize + 1))}
-                    className="h-10 w-10 rounded-r-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    When enabled, groups will never have fewer members than the minimum. This may leave some members unassigned if there aren't enough to form a complete group.
+                  </p>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Players per group (2-8)
-                </p>
               </div>
             </div>
           </div>
